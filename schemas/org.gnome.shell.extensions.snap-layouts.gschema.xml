@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist gettext-domain="snap-layouts">
+  <schema id="org.gnome.shell.extensions.snap-layouts"
+          path="/org/gnome/shell/extensions/snap-layouts/">
+
+    <key name="enabled" type="b">
+      <default>true</default>
+      <summary>Enable click-to-show layouts</summary>
+      <description>Master toggle for showing the overlay button and layout popup on each window.</description>
+    </key>
+
+    <key name="gap-px" type="i">
+      <range min="0" max="64"/>
+      <default>0</default>
+      <summary>Gap between tiled windows in pixels</summary>
+      <description>Defaults to 0 (windows snap edge-to-edge, seamlessly, like Windows' own Snap). Raise this if you'd rather have a visible gap between tiled windows.</description>
+    </key>
+
+    <key name="button-hit-size-px" type="i">
+      <range min="16" max="64"/>
+      <default>34</default>
+      <summary>Overlay button size in pixels</summary>
+      <description>Size of the Shell-drawn button shown next to each window's own maximize button; clicking it opens the layout popup.</description>
+    </key>
+
+    <key name="enabled-layouts" type="as">
+      <default>['split-50-50', 'split-67-33', 'split-33-67', 'thirds', 'grid-4', 'split-25-50-25', 'main-plus-two-stack']</default>
+      <summary>Which layout templates to show</summary>
+    </key>
+
+    <key name="app-extra-clearance-overrides" type="as">
+      <default>[]</default>
+      <summary>Per-app extra overlay-button clearance</summary>
+      <description>List of "wmclass=extra_px" pairs. Some apps draw more than the standard minimize/maximize/close 3-button cluster in their header bar (VS Code's layout toggles, a browser's own Share button, etc.), so the overlay button needs extra clearance on top of the generic estimate to avoid landing on top of them. Matched case-insensitively as a substring of the window's WM_CLASS. A small built-in table covers a few common apps; entries here take priority over it and let you add more.</description>
+    </key>
+
+    <key name="button-position-fractions" type="a{sd}">
+      <default>{}</default>
+      <summary>Per-app horizontal position of the overlay button within the title bar</summary>
+      <description>Maps a window's WM_CLASS (lower-cased) to the fractional horizontal position (0.0 = left edge, 1.0 = right edge) the user last dragged that app's overlay button to within its title bar. An app with no entry here uses the automatic placement next to its window controls. Keyed per app specifically so dragging the button on one application's window never moves the button on a different application's window.</description>
+    </key>
+
+  </schema>
+</schemalist>

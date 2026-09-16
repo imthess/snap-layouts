@@ -1,0 +1,9 @@
+{
+  "uuid": "snap-layouts@zubayer",
+  "name": "Snap Layouts",
+  "description": "Windows 11-style Snap Layouts: hover the maximize button to pick a tiling layout.",
+  "shell-version": ["45", "46", "47", "48", "49", "50"],
+  "url": "https://github.com/zubayer/snap-layouts",
+  "settings-schema": "org.gnome.shell.extensions.snap-layouts",
+  "gettext-domain": "snap-layouts"
+}

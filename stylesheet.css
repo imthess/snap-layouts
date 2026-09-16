@@ -1,0 +1,51 @@
+.snap-layouts-overlay-button {
+  background-color: rgba(45, 45, 45, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 6px;
+}
+
+.snap-layouts-overlay-button:hover {
+  background-color: rgba(70, 120, 215, 0.92);
+  border-color: rgba(170, 205, 255, 0.95);
+}
+
+.snap-layouts-button-icon {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.snap-layouts-overlay {
+  background-color: rgba(32, 32, 32, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 12px;
+  spacing: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.snap-layouts-card {
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 6px;
+}
+
+.snap-layouts-card:hover {
+  background-color: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.snap-layouts-zone {
+  background-color: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 3px;
+}
+
+.snap-layouts-zone:hover {
+  background-color: rgba(70, 130, 230, 0.85);
+  border-color: rgba(140, 180, 255, 0.95);
+}
+
+.snap-layouts-card-label {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.65);
+}
