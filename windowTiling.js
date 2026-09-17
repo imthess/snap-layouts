@@ -1,21 +1,17 @@
 'use strict';
 
-import Meta from 'gi://Meta';
+import { isTileableWindow } from './windowQuery.js';
 
 const EDGE_TOLERANCE_PX = 40;
+
 const MIN_SIZE_PX = 50;
 
 export class TilingManager {
-    
-    constructor({ getGapPx } = { }) {
+    constructor({ getGapPx } = {}) {
         this._getGapPx = getGapPx || (() => 0);
 
-        
         this._tracked = new Map();
 
-        
-        
-        
         this._applyingProgrammatic = false;
 
         this._displaySignals = [];
@@ -26,7 +22,7 @@ export class TilingManager {
             if (actor.meta_window)
                 this._maybeTrack(actor.meta_window);
         }
-        
+
         this._displaySignals.push({
             obj: global.window_manager,
             id: global.window_manager.connect('map', (_wm, actor) => {
@@ -38,7 +34,7 @@ export class TilingManager {
 
     disable() {
         for (const { obj, id } of this._displaySignals) {
-            try { obj.disconnect(id); } catch (e) {  }
+            try { obj.disconnect(id); } catch (e) {}
         }
         this._displaySignals = [];
 
@@ -47,20 +43,10 @@ export class TilingManager {
         this._tracked.clear();
     }
 
-    _isTileable(win) {
-        if (win.get_window_type() !== Meta.WindowType.NORMAL)
-            return false;
-        if (typeof win.is_attached_dialog === 'function' && win.is_attached_dialog())
-            return false;
-        if (win.get_transient_for())
-            return false;
-        return true;
-    }
-
     _maybeTrack(win) {
         if (!win || this._tracked.has(win))
             return;
-        if (!this._isTileable(win))
+        if (!isTileableWindow(win))
             return;
 
         const rect = this._currentRect(win);
@@ -74,7 +60,8 @@ export class TilingManager {
 
         this._tracked.set(win, {
             rect,
-            maximized: this._isMaximized(win),    
+            maximized: this._isMaximized(win),
+
             settled: false,
             sizeChangedId,
             unmanagingId,
@@ -85,8 +72,8 @@ export class TilingManager {
         const entry = this._tracked.get(win);
         if (!entry)
             return;
-        try { win.disconnect(entry.sizeChangedId); } catch (e) {  }
-        try { win.disconnect(entry.unmanagingId); } catch (e) {  }
+        try { win.disconnect(entry.sizeChangedId); } catch (e) {}
+        try { win.disconnect(entry.unmanagingId); } catch (e) {}
         this._tracked.delete(win);
     }
 
@@ -98,9 +85,9 @@ export class TilingManager {
     _isMaximized(win) {
         return typeof win.is_maximized === 'function'
             ? win.is_maximized()
-            : win.get_maximized() !== 0; 
+            : win.get_maximized() !== 0;
     }
-    
+
     _liveNeighborRects(win) {
         const workspace = win.get_workspace();
         const monitor = win.get_monitor();
@@ -137,17 +124,16 @@ export class TilingManager {
         const isMaximized = this._isMaximized(win);
         const wasSettled = entry.settled;
 
-        
-        
-        
         entry.rect = newRect;
         entry.maximized = isMaximized;
         entry.settled = true;
 
         if (this._applyingProgrammatic)
-            return; 
+            return;
+
         if (!wasSettled)
             return;
+
         if (wasMaximized || isMaximized)
             return;
 
@@ -155,7 +141,6 @@ export class TilingManager {
         this._propagateResize(oldRect, newRect, others);
     }
 
-    
     _propagateResize(oldRect, newRect, others) {
         const tolerance = EDGE_TOLERANCE_PX + this._getGapPx();
 
@@ -180,7 +165,7 @@ export class TilingManager {
         try {
             for (const [otherWin, otherRect] of others) {
                 if (this._isMaximized(otherWin))
-                    continue; 
+                    continue;
 
                 let x = otherRect.x;
                 let y = otherRect.y;
@@ -188,31 +173,25 @@ export class TilingManager {
                 let height = otherRect.height;
                 let changed = false;
 
-                
-                
-                
                 if (rightMoved && this._closeTo(otherRect.x, oldRight, tolerance)) {
                     const rightEdge = otherRect.x + otherRect.width;
                     x = newRight;
                     width = rightEdge - x;
                     changed = true;
                 }
-                
-                
+
                 if (leftMoved && this._closeTo(otherRect.x + otherRect.width, oldLeft, tolerance)) {
                     width = newLeft - otherRect.x;
                     changed = true;
                 }
-                
-                
+
                 if (bottomMoved && this._closeTo(otherRect.y, oldBottom, tolerance)) {
                     const bottomEdge = otherRect.y + otherRect.height;
                     y = newBottom;
                     height = bottomEdge - y;
                     changed = true;
                 }
-                
-                
+
                 if (topMoved && this._closeTo(otherRect.y + otherRect.height, oldTop, tolerance)) {
                     height = newTop - otherRect.y;
                     changed = true;

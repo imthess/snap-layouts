@@ -40,5 +40,11 @@
       <description>Maps a window's WM_CLASS (lower-cased) to the fractional horizontal position (0.0 = left edge, 1.0 = right edge) the user last dragged that app's overlay button to within its title bar. An app with no entry here uses the automatic placement next to its window controls. Keyed per app specifically so dragging the button on one application's window never moves the button on a different application's window.</description>
     </key>
 
+    <key name="snap-assist-enabled" type="b">
+      <default>true</default>
+      <summary>Offer other open windows for the remaining zones after a snap</summary>
+      <description>Matches Windows 11's Snap Assist: after snapping a window into one zone of a multi-zone layout, highlights the still-empty zone(s) directly on screen with the user's other open windows on the same workspace offered as clickable choices to fill them.</description>
+    </key>
+
   </schema>
 </schemalist>

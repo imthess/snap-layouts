@@ -1,4 +1,5 @@
 'use strict';
+
 const LAYOUTS = [
     {
         id: 'split-50-50',
@@ -30,7 +31,7 @@ const LAYOUTS = [
     {
         id: 'thirds',
         label: '3 Columns',
-        
+
         minAspect: 1.3,
         zones: [
             { x: 0.0, y: 0.0, w: 1 / 3, h: 1.0 },
@@ -70,7 +71,6 @@ const LAYOUTS = [
         ],
     },
 ];
-
 
 function getLayoutsForAspect(aspect) {
     return LAYOUTS.filter(l => aspect >= l.minAspect);

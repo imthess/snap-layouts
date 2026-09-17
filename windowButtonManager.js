@@ -5,21 +5,24 @@ import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 
-const BUTTON_SIZE_DEFAULT = 34; 
+const BUTTON_SIZE_DEFAULT = 34;
+
 const BUTTON_OFFSET_FROM_EDGE_Y = 8;
 const BUTTON_OFFSET_FROM_EDGE_X = 8;
+
 const NATIVE_BUTTON_WIDTH_ESTIMATE = 42;
 const NATIVE_BUTTON_COUNT_ESTIMATE = 3;
 const NATIVE_CLUSTER_CLEARANCE =
     NATIVE_BUTTON_WIDTH_ESTIMATE * NATIVE_BUTTON_COUNT_ESTIMATE;
+
 const DEFAULT_APP_EXTRA_CLEARANCE_PX = new Map([
-    ['code', 130], 
-    ['jetbrains', 90], 
+    ['code', 130],
+    ['jetbrains', 90],
 ]);
+
 const DRAG_THRESHOLD_PX = 4;
 
 export class WindowButtonManager {
-    
     constructor({
         onButtonClicked,
         getEnabled,
@@ -34,13 +37,18 @@ export class WindowButtonManager {
         this._getButtonSize = getButtonSize || (() => BUTTON_SIZE_DEFAULT);
         this._getAppClearanceOverrides = getAppClearanceOverrides || (() => []);
         this._getCustomPositionFraction = getCustomPositionFraction || (() => null);
-        this._onPositionChanged = onPositionChanged || null;        
+        this._onPositionChanged = onPositionChanged || null;
+
         this._entries = new Map();
+
         this._displaySignals = [];
         this._workspaceSignals = [];
+
         this._dragState = null;
         this._dragCaptureId = null;
+
         this._suppressNextClick = false;
+
         this._buttonIcon = null;
         if (iconPath) {
             try {
@@ -66,12 +74,14 @@ export class WindowButtonManager {
             if (actor.meta_window)
                 this._maybeTrackWindow(actor.meta_window);
         }
+
         this._displaySignals.push({
             obj: global.display,
             id: global.display.connect('window-created', (_d, win) => {
                 this._maybeTrackWindow(win);
             }),
         });
+
         this._displaySignals.push({
             obj: global.display,
             id: global.display.connect('restacked', () => {
@@ -92,12 +102,12 @@ export class WindowButtonManager {
         this._cancelDrag();
 
         for (const { obj, id } of this._displaySignals) {
-            try { obj.disconnect(id); } catch (e) {  }
+            try { obj.disconnect(id); } catch (e) {}
         }
         this._displaySignals = [];
 
         for (const { obj, id } of this._workspaceSignals) {
-            try { obj.disconnect(id); } catch (e) {  }
+            try { obj.disconnect(id); } catch (e) {}
         }
         this._workspaceSignals = [];
 
@@ -120,6 +130,7 @@ export class WindowButtonManager {
             width: this._getButtonSize(),
             height: this._getButtonSize(),
         });
+
         const icon = new St.Icon({
             style_class: 'snap-layouts-button-icon',
             icon_size: Math.round(this._getButtonSize() * 0.62),
@@ -131,6 +142,7 @@ export class WindowButtonManager {
         button.connect('clicked', () => {
             if (!this._getEnabled())
                 return;
+
             if (this._suppressNextClick) {
                 this._suppressNextClick = false;
                 return;
@@ -140,8 +152,10 @@ export class WindowButtonManager {
 
         button.connect('button-press-event', (actor, event) => {
             return this._onButtonPress(win, actor, event);
-        });  
+        });
+
         global.window_group.add_child(button);
+
         const signalIds = [];
         const track = (obj, sig, handler) => {
             signalIds.push({ obj, id: obj.connect(sig, handler) });
@@ -170,7 +184,7 @@ export class WindowButtonManager {
             this._cancelDrag();
 
         for (const { obj, id } of entry.signalIds) {
-            try { obj.disconnect(id); } catch (e) {  }
+            try { obj.disconnect(id); } catch (e) {}
         }
 
         entry.button.destroy();
@@ -192,7 +206,6 @@ export class WindowButtonManager {
         entry.button.set_position(Math.round(x), Math.round(y));
     }
 
-    
     _computeButtonX(win, frameRect) {
         const customFraction = this._getCustomPositionFraction(win);
         if (typeof customFraction === 'number' && Number.isFinite(customFraction)) {
@@ -211,31 +224,28 @@ export class WindowButtonManager {
         return frameRect.x + BUTTON_OFFSET_FROM_EDGE_X + clearance;
     }
 
-    
     _getDragBounds(frameRect) {
         const size = this._getButtonSize();
         const min = frameRect.x + BUTTON_OFFSET_FROM_EDGE_X;
         const max = frameRect.x + frameRect.width - BUTTON_OFFSET_FROM_EDGE_X - size;
         if (max < min) {
-            
-            
-            
             const mid = frameRect.x + (frameRect.width - size) / 2;
             return { min: mid, max: mid };
         }
         return { min, max };
     }
 
-    
     _onButtonPress(win, actor, event) {
         if (event.get_button() !== Clutter.BUTTON_PRIMARY)
             return Clutter.EVENT_PROPAGATE;
+
         if (this._dragState)
             this._cancelDrag();
 
         const frameRect = win.get_frame_rect();
         if (!frameRect)
             return Clutter.EVENT_PROPAGATE;
+
         const [startPointerX] = global.get_pointer();
 
         this._dragState = {
@@ -246,6 +256,7 @@ export class WindowButtonManager {
             moved: false,
             bounds: this._getDragBounds(frameRect),
         };
+
         this._dragCaptureId = global.stage.connect(
             'captured-event',
             (_actor, ev) => this._onDragEvent(ev)
@@ -261,6 +272,7 @@ export class WindowButtonManager {
         const type = event.type();
         if (type === Clutter.EventType.MOTION) {
             const [pointerX, , mask] = global.get_pointer();
+
             if ((mask & Clutter.ModifierType.BUTTON1_MASK) === 0) {
                 this._finishDrag();
                 return Clutter.EVENT_PROPAGATE;
@@ -286,7 +298,6 @@ export class WindowButtonManager {
         return Clutter.EVENT_PROPAGATE;
     }
 
-    
     _forceDragVisual(actor) {
         actor.track_hover = false;
         actor.add_style_pseudo_class('hover');
@@ -310,14 +321,12 @@ export class WindowButtonManager {
             this._onPositionChanged(drag.win, Math.min(1, Math.max(0, fraction)));
     }
 
-    
     _cancelDrag() {
         const actor = this._dragState && this._dragState.actor;
         this._dragState = null;
         this._releaseDragTracking(actor);
     }
 
-    
     _releaseDragTracking(actor) {
         if (this._dragCaptureId) {
             global.stage.disconnect(this._dragCaptureId);
@@ -325,12 +334,12 @@ export class WindowButtonManager {
         }
 
         if (actor && actor.track_hover === false) {
-            try { actor.remove_style_pseudo_class('hover'); } catch (e) {  }
+            try { actor.remove_style_pseudo_class('hover'); } catch (e) {}
             actor.track_hover = true;
         }
 
         if (actor && typeof actor.sync_hover === 'function') {
-            try { actor.sync_hover(); } catch (e) {  }
+            try { actor.sync_hover(); } catch (e) {}
         }
     }
 
@@ -373,11 +382,11 @@ export class WindowButtonManager {
             this._refreshVisibility(win);
     }
 
-    
     repositionAll() {
         for (const win of this._entries.keys())
             this._repositionButton(win);
     }
+
     _syncStackingOrder() {
         const actors = global.get_window_actors();
         for (const actor of actors) {
@@ -393,7 +402,7 @@ export class WindowButtonManager {
 
     _isMaximizeOnRight() {
         if (!this._wmPrefsSettings)
-            return true; 
+            return true;
         try {
             const layout = this._wmPrefsSettings.get_string('button-layout') || ':minimize,maximize,close';
             const rightSide = layout.split(':')[1] || '';

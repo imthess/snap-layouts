@@ -1,9 +1,12 @@
 'use strict';
+
 import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
 import GLib from 'gi://GLib';
+
 import { ExtensionPreferences } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 import { Layouts } from './layouts.js';
+
 export default class SnapLayoutsPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
         const settings = this.getSettings();
@@ -20,6 +23,15 @@ export default class SnapLayoutsPreferences extends ExtensionPreferences {
         });
         settings.bind('enabled', enabledRow, 'active', 0);
         behaviorGroup.add(enabledRow);
+
+        const snapAssistRow = new Adw.SwitchRow({
+            title: 'Snap Assist',
+            subtitle: 'After snapping into one zone of a multi-zone layout, highlight the ' +
+                'remaining zone(s) with your other open windows as one-click choices to fill them ' +
+                '(like Windows 11\'s own Snap Assist)',
+        });
+        settings.bind('snap-assist-enabled', snapAssistRow, 'active', 0);
+        behaviorGroup.add(snapAssistRow);
 
         const gapRow = new Adw.SpinRow({
             title: 'Gap between windows (px)',
@@ -60,7 +72,7 @@ export default class SnapLayoutsPreferences extends ExtensionPreferences {
             sensitive: hasCustomPositions(),
         });
         resetPositionButton.connect('clicked', () => {
-            settings.set_value('button-position-fractions', new GLib.Variant('a{sd}', { }));
+            settings.set_value('button-position-fractions', new GLib.Variant('a{sd}', {}));
         });
         settings.connect('changed::button-position-fractions', () => {
             resetPositionButton.sensitive = hasCustomPositions();

@@ -8,7 +8,7 @@ const CARD_WIDTH = 140;
 const CARD_HEIGHT = 90;
 const CARD_PADDING = 10;
 const ZONE_GAP_PX = 3;
-const OVERLAY_MARGIN = 10; 
+const OVERLAY_MARGIN = 10;
 
 export const LayoutOverlay = GObject.registerClass(
     {
@@ -39,7 +39,7 @@ export const LayoutOverlay = GObject.registerClass(
                 });
 
                 const innerW = CARD_WIDTH - CARD_PADDING * 2;
-                const innerH = CARD_HEIGHT - CARD_PADDING * 2 - 16; 
+                const innerH = CARD_HEIGHT - CARD_PADDING * 2 - 16;
 
                 for (const zone of layout.zones) {
                     const zoneActor = new St.Button({
@@ -75,6 +75,7 @@ export const LayoutOverlay = GObject.registerClass(
                 this.add_child(card);
             }
         }
+
         positionNear(buttonRect, workArea) {
             let x = buttonRect.x + buttonRect.width / 2 - this.width / 2;
             let y = buttonRect.y + buttonRect.height + OVERLAY_MARGIN;
@@ -83,7 +84,6 @@ export const LayoutOverlay = GObject.registerClass(
             const minX = workArea.x + 4;
             x = Math.max(minX, Math.min(x, maxX));
 
-            
             if (y + this.height > workArea.y + workArea.height) {
                 y = buttonRect.y - this.height - OVERLAY_MARGIN;
             }

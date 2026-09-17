@@ -21,8 +21,11 @@ snap-layouts@kza/
 ├── extension.js            Entry point — wires the button manager to the overlay to the snapper
 ├── windowButtonManager.js  Draws + tracks a Shell-owned button per window
 ├── layoutOverlay.js        Renders the popup (St/Clutter actors) with clickable zones
+├── snapAssistOverlay.js    Renders the Snap Assist "fill the rest" panels after a snap
 ├── layouts.js              Pure-data layout templates (fractional zone rects)
 ├── windowSnapper.js        Converts a zone to real pixels + calls move_resize_frame
+├── windowTiling.js         Dynamic tiling: resizing one window resizes its touching neighbors
+├── windowQuery.js          Shared "what counts as a real tileable window" + neighbor-finding helpers
 ├── prefs.js                Preferences window (Adwaita)
 ├── schemas/
 │   └── org.gnome.shell.extensions.snap-layouts.gschema.xml
@@ -145,14 +148,75 @@ An `St.BoxLayout` added to `Main.layoutManager.uiGroup`, containing one
 card per layout template, each showing a small preview of its zones as
 mini rectangles. Clicking a zone emits `zone-chosen` with both the
 template and the specific zone clicked, snaps the window there
-immediately, and the popup closes. `extension.js` also closes the
-popup if the user clicks anywhere outside it
+immediately, and the popup closes (followed by Snap Assist — see
+below — if the template has more than one zone). `extension.js` also
+closes the popup if the user clicks anywhere outside it
 (`captured-event::button` on the stage, checked against the popup's
 own allocated box — a reliable use of that signal, since it only needs
 to see clicks relative to a Shell-owned actor's bounds, not detect
 clicks landing on someone else's surface).
 
-### 3. Layout templates (`layouts.js`)
+### 3. Snap Assist (`snapAssistOverlay.js`)
+
+After a zone is chosen from a multi-zone template, `extension.js`
+checks whether any of that template's other zones are still empty. If
+so, and `snap-assist-enabled` is on, it creates one `SnapAssistZone`
+panel per empty zone — an `St.Widget` on a `Clutter.FixedLayout`,
+sized and positioned to that
+zone's *real on-screen pixel rect* (the same rect `windowSnapper`
+would use to actually place a window there), listing the user's other
+open windows on the same workspace (not restricted to the same
+monitor — picking one just moves it onto this monitor when it's
+snapped into the chosen zone, matching how Windows' own Snap Assist
+can pull in a window from another screen) as clickable icon+title
+chips. Picking one snaps that window into that zone and re-evaluates:
+any zones still empty get fresh panels (with the just-placed window no
+longer offered), so a 3+ zone template keeps prompting until
+everything's filled, the user clicks elsewhere to dismiss it, or there
+are no more open windows to offer. This is the same interaction
+Windows 11 calls Snap Assist. Each chip is manually positioned with
+plain arithmetic (row/column math) rather than a flow/expand-based
+layout manager — deliberately the same "St.Widget + Clutter.FixedLayout
+and explicit set_position()/set_size() per child" technique
+`layoutOverlay.js` already uses for its own clickable zone buttons. An
+earlier version used `Clutter.FlowLayout` inside an `St.BoxLayout` with
+expand flags instead, and the chips it produced silently weren't
+clickable; rather than keep debugging an approach with no other
+working example in this codebase, matching the one that's proven to
+work removed the problem entirely.
+
+Candidate windows are filtered by `windowQuery.js`'s
+`isTileableWindow()` / `listWorkspaceCompanions()` — the same shared
+helpers `windowTiling.js` uses to decide what counts as a real,
+tileable application window, so the two features can't drift apart
+into disagreeing definitions. A file picker or alert box is never
+offered as something to snap into a zone, even if a toolkit happens to
+report it as `WindowType.NORMAL` (see windowQuery.js for why
+`get_transient_for()` is checked independently of window type). If the
+window that triggered the flow (or any currently-offered candidate)
+closes while a panel is showing, the whole thing is torn down rather
+than risk a chip pointing at a
+now-gone window.
+
+Dismissing on an outside click uses a plain, invisible, full-stage
+`St.Widget` added *behind* the zone panels (in z-order, added to
+`uiGroup` first) rather than computing click coordinates against each
+panel's rectangle by hand. Clutter always resolves a click to the
+topmost actor under the pointer, so a click on a chip is delivered to
+the chip — the backdrop only ever receives clicks that don't land on
+anything in front of it, and its own handler just closes everything.
+An earlier version did the hit-testing manually, via a `captured-event`
+listener on the stage — the exact same technique the button-drag code
+uses (see section 1), which is fine for *tracking* a drag but turned
+out to be the wrong tool for *dismissal*: that capture-phase handler
+could destroy the panels (and the chip inside one) before the chip's
+own `'clicked'` signal had a chance to fire on the very same click,
+which is why picking any suggestion silently did nothing. Letting
+normal picking sort out "chip or backdrop" removes that race
+entirely — this is the same backdrop-behind-content pattern GNOME
+Shell's own dismissible popups use.
+
+### 4. Layout templates (`layouts.js`)
 
 Plain data — no rendering logic. Each template is a list of zones as
 **fractions of the work area** (`{x, y, w, h}` in `[0,1]`), so the same
@@ -167,14 +231,14 @@ still maximizes normally — untouched by this extension — a dedicated
 maximize zone in the popup would just be a redundant second way to do
 the same thing, so it isn't included here).
 
-### 4. Snapping (`windowSnapper.js`)
+### 5. Snapping (`windowSnapper.js`)
 
 `zoneToRect()` converts a fractional zone + work area + gap preference
 into a pixel rect. `snapWindowToRect()` un-maximizes if needed (Mutter
 ignores resize requests on maximized windows) then calls
 `win.move_resize_frame(true, x, y, w, h)`.
 
-### 5. Dynamic tiling resize (`windowTiling.js`)
+### 6. Dynamic tiling resize (`windowTiling.js`)
 
 `TilingManager` tracks every normal window from the moment it's mapped
 (or from `enable()`, for ones that already existed) — no registry of
@@ -251,6 +315,29 @@ Open preferences with:
 ```bash
 gnome-extensions prefs snap-layouts@kza
 ```
+
+## Customizing the icon
+
+The overlay button's icon is a single file: `icons/button-icon.svg`,
+drawn via `St.Icon`.
+
+- To replace it, overwrite `icons/button-icon.svg` with your own SVG
+  of the same filename. Keep it simple/monochrome — GNOME Shell tints
+  icons to the theme's symbolic-icon color (usually white/light gray),
+  so multi-color artwork gets flattened to that single color rather
+  than rendered as-is. A roughly square aspect ratio works best, since
+  it's rendered into a fixed-size square button.
+- To use a different filename instead of overwriting the existing one,
+  update the single reference to it in `extension.js`:
+
+  ```js
+  iconPath: GLib.build_filenamev([this.path, 'icons', 'button-icon.svg']),
+  ```
+
+  change `'button-icon.svg'` to your new filename.
+- No schema recompile needed for icon changes — just reload the
+  extension (log out/in on Wayland, or `Alt+F2` -> `r` on an X11
+  session).
 
 ## Development / testing
 
