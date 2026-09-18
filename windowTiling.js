@@ -17,6 +17,16 @@ export class TilingManager {
         this._displaySignals = [];
     }
 
+    runWithoutPropagation(fn) {
+        const was = this._applyingProgrammatic;
+        this._applyingProgrammatic = true;
+        try {
+            return fn();
+        } finally {
+            this._applyingProgrammatic = was;
+        }
+    }
+
     enable() {
         for (const actor of global.get_window_actors()) {
             if (actor.meta_window)

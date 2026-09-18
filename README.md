@@ -73,7 +73,7 @@ For every normal window, `WindowButtonManager`:
   fullscreen (`'notify::fullscreen'`), or on a different workspace
   (`'workspace-changed'` on the window, plus
   `'active-workspace-changed'` on the workspace manager to catch
-  switching *to* the window's workspace),
+  switching _to_ the window's workspace),
 - destroys it on `'unmanaging'`.
 
 The **trade-off**, discussed directly with the project owner before
@@ -136,7 +136,7 @@ reposition, including window resizes and maximize/restore, so the
 button keeps its relative spot in the title bar rather than drifting
 off an edge or overlapping the window controls. Being keyed per app
 means dragging the button on one application's window only ever moves
-the button on *that* application's other windows — a different app
+the button on _that_ application's other windows — a different app
 keeps its own independent position (or the automatic placement, if it
 has never been dragged). The preferences window has a "Reset all to
 default position" button that clears every app's custom position and
@@ -149,12 +149,36 @@ card per layout template, each showing a small preview of its zones as
 mini rectangles. Clicking a zone emits `zone-chosen` with both the
 template and the specific zone clicked, snaps the window there
 immediately, and the popup closes (followed by Snap Assist — see
-below — if the template has more than one zone). `extension.js` also
-closes the popup if the user clicks anywhere outside it
-(`captured-event::button` on the stage, checked against the popup's
-own allocated box — a reliable use of that signal, since it only needs
-to see clicks relative to a Shell-owned actor's bounds, not detect
-clicks landing on someone else's surface).
+below — if the template has more than one zone).
+
+Dismissing on an outside click uses the same plain, invisible,
+full-stage `St.Widget` backdrop technique Snap Assist uses (see
+section 3) — added to `uiGroup` _before_ the popup, so Clutter's
+normal picking (topmost actor under the pointer wins) sends a click on
+a zone card to that card and everything else to the backdrop, which
+just closes the popup. An earlier version computed "is this click
+point inside the popup's rectangle" by hand against a captured-event
+listener on the stage instead; that stopped reliably closing the popup
+on an outside click whenever the click's primary recipient was a
+_different application's_ window surface rather than Shell's own
+chrome — the exact same capture-phase limitation already documented
+below in "Design history" (approach 2: intercepting the app's own
+maximize button ran into this identically). The backdrop sidesteps it
+the same way the overlay button itself does: rather than depend on
+seeing input a foreign client surface is the primary recipient of,
+make the dismiss target a Shell-owned actor that's _always_ the
+topmost thing at that point whenever nothing more specific (a zone
+card) is in front of it. One
+consequence: because the backdrop sits above `global.window_group`
+(where the trigger button itself lives) in z-order, a click on the
+trigger button while its own popup is open is also caught by the
+backdrop rather than reaching the button — which still closes the
+popup correctly (same as any other outside click), it just means
+`WindowButtonManager`'s own `'clicked'` handling never sees that
+particular press. Switching which window's popup is showing this way
+takes two clicks instead of one (first closes the current popup,
+second opens the new one) — a minor, accepted tradeoff for reliable
+dismissal.
 
 ### 3. Snap Assist (`snapAssistOverlay.js`)
 
@@ -163,7 +187,7 @@ checks whether any of that template's other zones are still empty. If
 so, and `snap-assist-enabled` is on, it creates one `SnapAssistZone`
 panel per empty zone — an `St.Widget` on a `Clutter.FixedLayout`,
 sized and positioned to that
-zone's *real on-screen pixel rect* (the same rect `windowSnapper`
+zone's _real on-screen pixel rect_ (the same rect `windowSnapper`
 would use to actually place a window there), listing the user's other
 open windows on the same workspace (not restricted to the same
 monitor — picking one just moves it onto this monitor when it's
@@ -177,13 +201,14 @@ are no more open windows to offer. This is the same interaction
 Windows 11 calls Snap Assist. Each chip is manually positioned with
 plain arithmetic (row/column math) rather than a flow/expand-based
 layout manager — deliberately the same "St.Widget + Clutter.FixedLayout
-and explicit set_position()/set_size() per child" technique
-`layoutOverlay.js` already uses for its own clickable zone buttons. An
-earlier version used `Clutter.FlowLayout` inside an `St.BoxLayout` with
-expand flags instead, and the chips it produced silently weren't
-clickable; rather than keep debugging an approach with no other
-working example in this codebase, matching the one that's proven to
-work removed the problem entirely.
+
+- explicit set_position()/set_size() per child" technique
+  `layoutOverlay.js` already uses for its own clickable zone buttons. An
+  earlier version used `Clutter.FlowLayout` inside an `St.BoxLayout` with
+  expand flags instead, and the chips it produced silently weren't
+  clickable; rather than keep debugging an approach with no other
+  working example in this codebase, matching the one that's proven to
+  work removed the problem entirely.
 
 Candidate windows are filtered by `windowQuery.js`'s
 `isTileableWindow()` / `listWorkspaceCompanions()` — the same shared
@@ -199,7 +224,7 @@ than risk a chip pointing at a
 now-gone window.
 
 Dismissing on an outside click uses a plain, invisible, full-stage
-`St.Widget` added *behind* the zone panels (in z-order, added to
+`St.Widget` added _behind_ the zone panels (in z-order, added to
 `uiGroup` first) rather than computing click coordinates against each
 panel's rectangle by hand. Clutter always resolves a click to the
 topmost actor under the pointer, so a click on a chip is delivered to
@@ -207,8 +232,8 @@ the chip — the backdrop only ever receives clicks that don't land on
 anything in front of it, and its own handler just closes everything.
 An earlier version did the hit-testing manually, via a `captured-event`
 listener on the stage — the exact same technique the button-drag code
-uses (see section 1), which is fine for *tracking* a drag but turned
-out to be the wrong tool for *dismissal*: that capture-phase handler
+uses (see section 1), which is fine for _tracking_ a drag but turned
+out to be the wrong tool for _dismissal_: that capture-phase handler
 could destroy the panels (and the chip inside one) before the chip's
 own `'clicked'` signal had a chance to fire on the very same click,
 which is why picking any suggestion silently did nothing. Letting
@@ -245,7 +270,7 @@ ignores resize requests on maximized windows) then calls
 "windows the popup snapped" and no dependency on `Meta.Display`'s
 `grab-op-begin`/`grab-op-end` signals. An earlier version tried
 grab-op detection and it silently never worked: those signals only
-fire for a resize *Mutter itself* is driving (dragging Mutter's own
+fire for a resize _Mutter itself_ is driving (dragging Mutter's own
 resize border), and plenty of real windows never go through that path
 — an app handling its own client-side-decoration edge-drag, or a Wine
 application (which by default paints its own border and resizes by
@@ -254,14 +279,14 @@ run an interactive grab) being exactly the case that motivated this
 rewrite.
 
 Instead, every tracked window's own `'size-changed'` signal is the
-trigger — it fires for *any* geometry change regardless of what caused
+trigger — it fires for _any_ geometry change regardless of what caused
 it, so grab-op, a client's own border-drag, a keyboard resize, and
 anything else are all covered uniformly. Each tracked window keeps its
 last-known frame rect; on `'size-changed'`, the new rect is diffed
 against that last-known one to see which edge(s) actually moved, and
-that gets propagated to any other tracked window on the *same
-workspace and monitor* whose matching edge was touching the moved one
-in the *previous* state (within a small tolerance that absorbs the
+that gets propagated to any other tracked window on the _same
+workspace and monitor_ whose matching edge was touching the moved one
+in the _previous_ state (within a small tolerance that absorbs the
 configured gap) — that neighbor's touching edge follows, while its
 opposite edge stays put, so it grows/shrinks rather than sliding. The
 tracked rect is refreshed after every event (even ones that don't
@@ -273,6 +298,25 @@ being misread as that neighbor's own resize. Adjacency — not snap
 history — is the only thing that matters, and restricting it to the
 same workspace + monitor is what keeps this from reaching across
 monitors or workspaces to touch something unrelated.
+
+Because `'size-changed'` fires for _any_ geometry change, that
+originally included changes `extension.js` itself causes by calling
+`snapWindowToRect()` — from the layout popup or from Snap Assist —
+which TilingManager had no way to tell apart from a genuine user drag.
+The result: clicking a zone (or a Snap Assist suggestion) could make
+some unrelated, merely-nearby window shrink down to
+`MIN_SIZE_PX`, since TilingManager read that first snap exactly like
+someone dragging an edge and went looking for a neighbor to drag
+along. `TilingManager.runWithoutPropagation(fn)` fixes this: it wraps
+a synchronous resize the same way the internal re-entrancy guard
+already wraps a neighbor resize, so the window's own tracked baseline
+still gets refreshed to its new (just-snapped) position, but that
+particular change is never propagated to anything else. `extension.js`
+wraps both of its `snapWindowToRect()` call sites with it. A window
+tiled this way still participates fully in dynamic tiling afterward —
+only the _triggering_ snap itself is exempted, so a later genuine user
+drag-resize of that same window still correctly finds and drags along
+whatever's actually touching it now.
 
 Two more guards exist specifically because tracking "every window"
 is dangerous if taken too literally. First, `_isTileable()` excludes
@@ -319,14 +363,27 @@ gnome-extensions prefs snap-layouts@kza
 ## Customizing the icon
 
 The overlay button's icon is a single file: `icons/button-icon.svg`,
-drawn via `St.Icon`.
+loaded via `Gio.icon_new_for_string(iconPath)` and drawn by `St.Icon`.
 
-- To replace it, overwrite `icons/button-icon.svg` with your own SVG
-  of the same filename. Keep it simple/monochrome — GNOME Shell tints
-  icons to the theme's symbolic-icon color (usually white/light gray),
-  so multi-color artwork gets flattened to that single color rather
-  than rendered as-is. A roughly square aspect ratio works best, since
-  it's rendered into a fixed-size square button.
+- **The color is baked into the SVG itself, not applied by GNOME
+  Shell.** Because it's loaded as a plain file icon (not a themed
+  `-symbolic` icon name looked up through an icon theme), St does not
+  recolor it to match the Shell theme — whatever `fill`/`stroke` color
+  the SVG's own paths specify is exactly what renders. The
+  `.snap-layouts-button-icon { color: ... }` rule in `stylesheet.css`
+  has no visible effect on this file-icon path; it's left in place
+  only in case a future version switches to loading a real symbolic
+  icon. To change the icon's color, edit the `fill`/`stroke`
+  attribute(s) on the SVG's own `<path>` element(s) directly.
+- Leave the SVG's background empty (no `<rect>` filling the canvas) so
+  it stays transparent — that, not any theme-switching logic, is what
+  makes a given fixed icon color read reasonably well against both a
+  dark and a light Shell theme, since there's no background box to
+  clash with either.
+- To replace the icon's shape entirely, overwrite `icons/button-icon.svg`
+  with your own SVG of the same filename. A roughly square aspect
+  ratio works best, since it's rendered into a fixed-size square
+  button, regardless of the source SVG's own `viewBox`.
 - To use a different filename instead of overwriting the existing one,
   update the single reference to it in `extension.js`:
 
@@ -384,7 +441,7 @@ journalctl -b 0 | grep -i "snap-layouts"
 Two earlier approaches were tried and abandoned, in order:
 
 1. **Hover the app's own maximize button, wait, show popup.**
-   Abandoned because there's no reliable way to detect *hovering* a
+   Abandoned because there's no reliable way to detect _hovering_ a
    button drawn by another process — pointer-motion events over a
    client's own surface don't reliably reach Shell's Clutter actor
    tree.
@@ -399,7 +456,7 @@ Two earlier approaches were tried and abandoned, in order:
 
 The **overlay button** approach sidesteps this entirely: instead of
 trying to intercept a click on something we don't own, we draw
-something we *do* own, right next to it. A Shell-owned `St.Button`'s
+something we _do_ own, right next to it. A Shell-owned `St.Button`'s
 click signal is exactly as reliable as any other button in the Shell
 UI, because there's no interception involved at all — and this has
 since been confirmed working in real testing.
@@ -447,16 +504,16 @@ single-click Windows 11 flow this extension is going for.
 UI-toolkit-agnostic (pure math over plain objects) so they can be
 reused outside GJS. What has to be reimplemented per desktop:
 
-| Piece | GNOME (this repo) | KDE Plasma (KWin) | Generic X11/Wayland |
-| --- | --- | --- | --- |
+| Piece                            | GNOME (this repo)                       | KDE Plasma (KWin)                                                         | Generic X11/Wayland                                                                                                            |
+| -------------------------------- | --------------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | Overlay button + window tracking | `windowButtonManager.js` (GJS + Mutter) | KWin scripting API (`KWin.readConfig`, window rects via KWin JS bindings) | A wlroots-layer-shell surface per window on wlroots compositors, or an X11 override-redirect window tracked to each app window |
-| Popup rendering | `layoutOverlay.js` (St/Clutter) | QML overlay via `PlasmaCore`/`Kirigami`, or a KWin effect | Same layer-shell/override-redirect mechanism as above |
-| Window move/resize | `Meta.Window.move_resize_frame()` | KWin script `client.frameGeometry = ...` | `_NET_MOVERESIZE_WINDOW` (X11) — no equivalent Wayland-wide protocol exists; each compositor needs its own integration |
+| Popup rendering                  | `layoutOverlay.js` (St/Clutter)         | QML overlay via `PlasmaCore`/`Kirigami`, or a KWin effect                 | Same layer-shell/override-redirect mechanism as above                                                                          |
+| Window move/resize               | `Meta.Window.move_resize_frame()`       | KWin script `client.frameGeometry = ...`                                  | `_NET_MOVERESIZE_WINDOW` (X11) — no equivalent Wayland-wide protocol exists; each compositor needs its own integration         |
 
 ### Why not a single standalone X11/Wayland daemon
 
 This is worth stating plainly since it affects the "broader Linux
-goal": on **X11**, a standalone daemon *can* work reasonably well —
+goal": on **X11**, a standalone daemon _can_ work reasonably well —
 `_NET_WM_MOVERESIZE`/`XQueryPointer` plus reading `_NET_FRAME_EXTENTS`
 gets you most of the way, and there's prior art (e.g. window-snapping
 tools built on `python-xlib`/`wmctrl`). On **Wayland**, there is

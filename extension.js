@@ -20,10 +20,10 @@ export default class SnapLayoutsExtension extends Extension {
         this._settings = this.getSettings();
 
         this._overlay = null;
+        this._overlayBackdrop = null;
         this._activeWindow = null;
         this._activeButtonActor = null;
         this._windowSignals = [];
-        this._outsideClickId = null;
 
         this._snapAssistPanels = [];
         this._snapAssistBackdrop = null;
@@ -138,6 +138,19 @@ export default class SnapLayoutsExtension extends Extension {
         if (layouts.length === 0)
             return;
 
+        const backdrop = new St.Widget({
+            reactive: true,
+            x: 0,
+            y: 0,
+        });
+        backdrop.set_size(global.stage.width, global.stage.height);
+        backdrop.connect('button-press-event', () => {
+            this._hideOverlay();
+            return Clutter.EVENT_STOP;
+        });
+        Main.layoutManager.uiGroup.add_child(backdrop);
+        this._overlayBackdrop = backdrop;
+
         const overlay = new LayoutOverlay(layouts);
         Main.layoutManager.uiGroup.add_child(overlay);
 
@@ -153,36 +166,7 @@ export default class SnapLayoutsExtension extends Extension {
         this._activeWindow = win;
         this._activeButtonActor = buttonActor;
 
-        this._outsideClickId = global.stage.connect(
-            'captured-event',
-            (actor, event) => this._onOutsideClick(event)
-        );
-
         this._trackWindowLifecycle(win);
-    }
-
-    _onOutsideClick(event) {
-        if (!this._overlay)
-            return Clutter.EVENT_PROPAGATE;
-        if (event.type() !== Clutter.EventType.BUTTON_PRESS)
-            return Clutter.EVENT_PROPAGATE;
-
-        const [px, py] = event.get_coords();
-
-        if (this._pointInsideActor(this._overlay, px, py))
-            return Clutter.EVENT_PROPAGATE;
-
-        if (this._activeButtonActor && this._pointInsideActor(this._activeButtonActor, px, py))
-            return Clutter.EVENT_PROPAGATE;
-
-        this._hideOverlay();
-        return Clutter.EVENT_PROPAGATE;
-    }
-
-    _pointInsideActor(actor, px, py) {
-        const [ax, ay] = actor.get_transformed_position();
-        const [aw, ah] = actor.get_transformed_size();
-        return px >= ax && px <= ax + aw && py >= ay && py <= ay + ah;
     }
 
     _trackWindowLifecycle(win) {
@@ -202,9 +186,9 @@ export default class SnapLayoutsExtension extends Extension {
     }
 
     _hideOverlay() {
-        if (this._outsideClickId) {
-            global.stage.disconnect(this._outsideClickId);
-            this._outsideClickId = null;
+        if (this._overlayBackdrop) {
+            this._overlayBackdrop.destroy();
+            this._overlayBackdrop = null;
         }
         if (this._overlay) {
             this._overlay.destroy();
@@ -220,7 +204,10 @@ export default class SnapLayoutsExtension extends Extension {
 
         const gapPx = this._settings.get_int('gap-px');
         const rect = zoneToRect(zone, workArea, gapPx);
-        snapWindowToRect(win, rect);
+        if (this._tilingManager)
+            this._tilingManager.runWithoutPropagation(() => snapWindowToRect(win, rect));
+        else
+            snapWindowToRect(win, rect);
 
         this._maybeShowSnapAssist({
             layout,
@@ -273,7 +260,11 @@ export default class SnapLayoutsExtension extends Extension {
             Main.layoutManager.uiGroup.add_child(panel);
 
             panel.connect('window-chosen', (_p, chosenWin) => {
-                snapWindowToRect(chosenWin, zoneToRect(zone, workArea, gapPx));
+                const chosenRect = zoneToRect(zone, workArea, gapPx);
+                if (this._tilingManager)
+                    this._tilingManager.runWithoutPropagation(() => snapWindowToRect(chosenWin, chosenRect));
+                else
+                    snapWindowToRect(chosenWin, chosenRect);
                 this._maybeShowSnapAssist({
                     layout,
                     workArea,
