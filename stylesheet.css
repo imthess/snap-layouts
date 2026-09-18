@@ -1,16 +1,16 @@
 .snap-layouts-overlay-button {
-    background-color: rgba(255, 252, 252, 0.88);
+    background-color: rgba(136, 133, 133, 0.88);
     border: 1px solid rgba(255, 255, 255, 0.22);
     border-radius: 6px;
 }
 
 .snap-layouts-overlay-button:hover {
-    background-color: rgba(70, 120, 215, 0.92);
+    background-color: rgba(0, 88, 252, 0.92);
     border-color: rgba(170, 205, 255, 0.95);
 }
 
 .snap-layouts-button-icon {
-    color: rgba(135, 206, 235, 0.95);
+    color: rgba(0, 183, 255, 0.95);
 }
 
 .snap-layouts-overlay {
